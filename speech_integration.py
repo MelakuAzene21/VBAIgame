@@ -36,20 +36,17 @@ class SpeechIntegration:
         
     def set_voice(self, voice):
         """Set the voice for text-to-speech"""
-        # Map OpenAI voice names to local voices
         voice_mapping = {
-            "alloy": 0,    # Default voice (usually male)
-            "echo": 0,     # Default voice
-            "fable": 0,    # Default voice
-            "onyx": 0,     # Default voice (usually male)
-            "nova": 1,     # Alternative voice (usually female)
-            "shimmer": 1   # Alternative voice (usually female)
+            "alloy": 0,
+            "echo": 0,
+            "fable": 0,
+            "onyx": 0,
+            "nova": 1,
+            "shimmer": 1
         }
         
-        # Get available voices
         voices = self.engine.getProperty('voices')
         
-        # Set voice based on mapping or index
         if voice in voice_mapping and len(voices) > voice_mapping[voice]:
             voice_index = voice_mapping[voice]
             self.engine.setProperty('voice', voices[voice_index].id)
@@ -113,38 +110,31 @@ class SpeechIntegration:
         """Convert text to speech and play it"""
         if not text:
             return
-        
+
         if voice:
             self.set_voice(voice)
-        
-        self.is_speaking = True
+
+        # Reset flags every time
         self.should_interrupt = False
-        
+        self.is_speaking = True
+
+        # Always create a new thread for speaking
         self.speak_thread = threading.Thread(target=self._speak_worker, args=(text,))
         self.speak_thread.daemon = True
         self.speak_thread.start()
         
     def _speak_worker(self, text):
-        """Worker thread for text-to-speech."""
+        """Worker thread for text-to-speech (full text)."""
         try:
-            # Break text into sentences for better interruption handling
-            sentences = text.split('. ')
-            
-            for sentence in sentences:
-                if self.should_interrupt:
-                    break
-                    
-                # Add period back if it was removed during split
-                if not sentence.endswith('.') and not sentence.endswith('?') and not sentence.endswith('!'):
-                    sentence += '.'
-                    
-                self.engine.say(sentence)
+            if not self.should_interrupt:
+                self.engine.say(text)
                 self.engine.runAndWait()
-                
         except Exception as e:
             print(f"[SpeechIntegration] Error in speak worker: {e}")
         finally:
+            # Reset to allow next speech
             self.is_speaking = False
+            self.should_interrupt = False
             
     def interrupt_speech(self):
         """Interrupt current speech playback"""
